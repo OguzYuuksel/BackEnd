@@ -4,72 +4,40 @@ import re
 import csv
 import time
 
-
-class Migros(Thread):
-    def __init__(self, threadID, name, StoreLinkColumn, ReadDBName, WriteDBName, TotalRow):
+class MyThread(Thread):
+    def __init__(self, threadID, name, ProductIndex, StoreLinkColumn, ReadDBName, WriteDBName, BrowserEmulator):
         Thread.__init__(self)
         self.threadID = threadID
         self.name = name
+        self.ProductIndex = ProductIndex
         self.StoreLinkColumn = StoreLinkColumn
         self.ReadDBName = ReadDBName
         self.WriteDBName = WriteDBName
-        self.TotalRow = TotalRow
+        self.BrowserEmulator = BrowserEmulator
 
     def run(self):
         print("Starting " + self.name)
-        migros(self.StoreLinkColumn, self.ReadDBName, self.WriteDBName, self.TotalRow)
+        getData(self.ProductIndex, self.StoreLinkColumn, self.ReadDBName, self.WriteDBName, self.BrowserEmulator)
         print("Exiting " + self.name)
 
+def getData(ProductIndex, StoreLinkColumn, ReadDBName, WriteDBName, BrowserEmulator):  
+    Link = ReadDBName[ProductIndex][StoreLinkColumn] # column = 2for migros row= ürün sırası # direk linki yazdır
+    BrowserEmulator.get(Link)
+    
+    if StoreLinkColumn == MigrosLinkReadDB:
+        GetPrice = BrowserEmulator.find_element_by_id("store-product-primary-price").text
+        StoreProductName = BrowserEmulator.find_element_by_css_selector("h1[class*='seo title']").text
+    elif StoreLinkColumn == CarrefoursaLinkReadDB:
+        GetPrice = BrowserEmulator.find_element_by_xpath("//span[@class = 'item-price'][@itemprop = 'price']").text
+        StoreProductName = BrowserEmulator.find_element_by_css_selector("li[class*='active']").text
 
-def migros(StoreLinkColumn, ReadDBName, WriteDBName, TotalRow):
-    BrowserEmulator = webdriver.Chrome(options=options)
-    for Row in range(0,TotalRow):
-        WriteDBName[Row][0] = ReadDBName[Row][0] #ProductID  0. column
-        WriteDBName[Row][1] = ReadDBName[Row][1] #ProductName 1. column
-        if ReadDBName[Row][MigrosLinkReadDB] != '0':
-            Link = ReadDBName[Row][StoreLinkColumn] # column = 2for migros row= ürün sırası # direk linki yazdır
-            BrowserEmulator.get(Link)
-            GetPrice = BrowserEmulator.find_element_by_id("store-product-primary-price").text
-            CommasRemovedFromPriceText = GetPrice.replace(',', '.')
-            PriceDigits = re.findall(r"[-+]?\d*\.?\d+|\d+", CommasRemovedFromPriceText)
-            CombinePriceDigits = ''.join(PriceDigits)
-            StoreProductName = BrowserEmulator.find_element_by_css_selector("h1[class*='seo title']").text
-            WriteDBName[Row][3*StoreLinkColumn-4] = StoreProductName #Product name on store
-            WriteDBName[Row][3*StoreLinkColumn-3] = CombinePriceDigits #price
-            WriteDBName[Row][3*StoreLinkColumn-2] = Link #link 4. column
-    BrowserEmulator.quit()
+    CommasRemovedFromPriceText = GetPrice.replace(',', '.')
+    PriceDigits = re.findall(r"[-+]?\d*\.?\d+|\d+", CommasRemovedFromPriceText)
+    CombinePriceDigits = ''.join(PriceDigits)
+    WriteDBName[ProductIndex][3*StoreLinkColumn-4] = StoreProductName #Product name on store
+    WriteDBName[ProductIndex][3*StoreLinkColumn-3] = CombinePriceDigits #price
+    WriteDBName[ProductIndex][3*StoreLinkColumn-2] = Link #link 4. column
 
-class Carrefoursa(Thread):
-    def __init__(self, threadID, name, StoreLinkColumn, ReadDBName, WriteDBName, TotalRow):
-        Thread.__init__(self)
-        self.threadID = threadID
-        self.name = name
-        self.StoreLinkColumn = StoreLinkColumn
-        self.ReadDBName = ReadDBName
-        self.WriteDBName = WriteDBName
-        self.TotalRow = TotalRow
-
-    def run(self):
-        print ("Starting " + self.name)
-        carrefoursa(self.StoreLinkColumn, self.ReadDBName, self.WriteDBName, self.TotalRow)
-        print ("Exiting " + self.name)
-
-def carrefoursa(StoreLinkColumn, ReadDBName, WriteDBName, TotalRow):
-    BrowserEmulator = webdriver.Chrome(options=options)
-    for Row in range(0, TotalRow):
-        WriteDBName[Row][0] = ReadDBName[Row][0]  # ProductID  0. column
-        WriteDBName[Row][1] = ReadDBName[Row][1]  # ProductName 1. column
-        if ReadDBName[Row][CarrefoursaLinkReadDB] != '0':
-            Link = ReadDBName[Row][StoreLinkColumn]  # column = 3for carrefoursa row= ürün sırası # direk linki yazdır
-            BrowserEmulator.get(Link)
-            GetPrice = BrowserEmulator.find_element_by_xpath("//span[@class = 'item-price'][@itemprop = 'price']").text
-            CommasRemovedFromPriceText = GetPrice.replace(',', '.')
-            PriceDigits = re.findall(r"[-+]?\d*\.?\d+|\d+", CommasRemovedFromPriceText)
-            CombinePriceDigits = ''.join(PriceDigits)
-            StoreProductName = BrowserEmulator.find_element_by_css_selector("li[class*='active']").text
-            WriteDBName[Row][3*StoreLinkColumn-4] = StoreProductName  # Product name on store
-            WriteDBName[Row][3*StoreLinkColumn-3] = CombinePriceDigits  # price
-            WriteDBName[Row][3*StoreLinkColumn-2] = Link  # link 4. column
     BrowserEmulator.quit()
 
 # URL/Product Database Upload
@@ -83,6 +51,8 @@ CarrefoursaLinkReadDB = 3 #2 for migros
 ##########
 
 ##########Create array from Uploaded Database
+numOfMarkets = 2
+numOfThreads = 4
 TotalColumn = 7 # WriteDB ne kadarda bir tekrarlıyor 0-4 / 1-5 adet (0 1 base (2-3-4), (5-6-7) store)
 TotalRow = int(len(InputFile))
 OutputFile = [[0] * (TotalColumn+1) for Row in range(TotalRow)] #Output CSV'mizi oluşturacak array
@@ -99,23 +69,27 @@ chrome_prefs = {}
 options.experimental_options["prefs"] = chrome_prefs
 chrome_prefs["profile.default_content_settings"] = {"images": 2}
 chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
-##########
 
+browserEmulators = []
+for Row in range(0, numOfThreads):
+    browserEmulators.append(webdriver.Chrome(options=options))
+
+#Thread yaratarak veri cekme
 start_time = time.time()
 
+for productIndex in range(0,TotalRow):
+    OutputFile[productIndex][0] = InputFile[productIndex][0] #ProductID  0. column
+    OutputFile[productIndex][1] = InputFile[productIndex][1] #ProductName 1. column
+    for marketIndex in range(2,numOfMarkets+2):
+        if InputFile[productIndex][marketIndex] != '0':
+            # numOfThreads'den az sayida aktif thread varsa yenisi yaratilir.
+            # Thread'e beslenecek olan browser ise thread ile iliskili browser olmalidir. Thread1-Browser1 Thread2-Browser2 gibi.
+            # Cunku browser sayisi kadar thread olmalidir.
 
-
-thread1 = Migros(1,"Thread-Mig", MigrosLinkReadDB, InputFile, OutputFile, TotalRow)
-thread2 = Carrefoursa(2,"Thread-Car", CarrefoursaLinkReadDB, InputFile, OutputFile, TotalRow)
-
-thread1.start()
-thread2.start()
-thread1.join()
-thread2.join()
-
-#if InputFile[GetLinkRow][MigrosLinkReadDB] != '0':
+            # thread = MyThread(cnt,"Thread-" + str(cnt), productIndex, marketIndex, InputFile, OutputFile)
+            # thread.start()
+            alper = 1
     
-#if InputFile[GetLinkRow][CarrefoursaLinkReadDB] != '0':        
 end_time= time.time() - start_time
    
 print(OutputFile)
