@@ -22,7 +22,7 @@ class Migros(Thread):
 
 
 def migros(StoreLinkColumn, ReadDBName, WriteDBName, TotalRow):
-    BrowserEmulator = webdriver.Chrome(chrome_options=options)
+    BrowserEmulator = webdriver.Chrome(options=options)
     for Row in range(0,TotalRow):
         WriteDBName[Row][0] = ReadDBName[Row][0] #ProductID  0. column
         WriteDBName[Row][1] = ReadDBName[Row][1] #ProductName 1. column
@@ -55,7 +55,7 @@ class Carrefoursa(Thread):
         print ("Exiting " + self.name)
 
 def carrefoursa(StoreLinkColumn, ReadDBName, WriteDBName, TotalRow):
-    BrowserEmulator = webdriver.Chrome(chrome_options=options)
+    BrowserEmulator = webdriver.Chrome(options=options)
     for Row in range(0, TotalRow):
         WriteDBName[Row][0] = ReadDBName[Row][0]  # ProductID  0. column
         WriteDBName[Row][1] = ReadDBName[Row][1]  # ProductName 1. column
@@ -94,6 +94,7 @@ options.add_argument("--headless")
 options.add_argument("incognito")
 options.add_argument("disable-extensions")
 options.add_argument("disable-popup-blocking")
+options.add_argument('--ignore-certificate-errors')
 chrome_prefs = {}
 options.experimental_options["prefs"] = chrome_prefs
 chrome_prefs["profile.default_content_settings"] = {"images": 2}
