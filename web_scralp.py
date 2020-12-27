@@ -40,20 +40,17 @@ def getData(ProductIndex, StoreLinkColumn, ReadDBName, WriteDBName, BrowserEmula
 
     BrowserEmulator.quit()
 
-# URL/Product Database Upload
-with open('links.csv', newline='', encoding='utf-8') as csvfile:
-    InputFile = list(csv.reader(csvfile))
-##########
-
-# Define Store's Links Location in ReadDB
+# Initialization
+numOfMarkets = 2
+numOfThreads = 4
+TotalColumn = 7 # WriteDB ne kadarda bir tekrarlıyor 0-4 / 1-5 adet (0 1 base (2-3-4), (5-6-7) store)
 MigrosLinkReadDB = 2 #2 for migros
 CarrefoursaLinkReadDB = 3 #2 for migros
 ##########
 
-##########Create array from Uploaded Database
-numOfMarkets = 2
-numOfThreads = 4
-TotalColumn = 7 # WriteDB ne kadarda bir tekrarlıyor 0-4 / 1-5 adet (0 1 base (2-3-4), (5-6-7) store)
+# IO Ops
+with open('links.csv', newline='', encoding='utf-8') as csvfile:
+    InputFile = list(csv.reader(csvfile))
 TotalRow = int(len(InputFile))
 OutputFile = [[0] * (TotalColumn+1) for Row in range(TotalRow)] #Output CSV'mizi oluşturacak array
 ##########
@@ -71,7 +68,7 @@ chrome_prefs["profile.default_content_settings"] = {"images": 2}
 chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
 
 browserEmulators = []
-for Row in range(0, numOfThreads):
+for i in range(0, numOfThreads):
     browserEmulators.append(webdriver.Chrome(options=options))
 
 #Thread yaratarak veri cekme
