@@ -89,6 +89,8 @@ class CategoryLinks():
             self.__getA101CategoryLinks(webpage_soup, self.__market_link)
         elif self.market is Markets.ISTEGELSIN:
             self.__getIstegelsinCategoryLinks(webpage_soup, self.__market_link)
+        elif self.market is Markets.CARREFOURSA:
+            self.__getCarrefoursaCategoryLinks(webpage_soup, self.__market_link)
         else:
             print("No scrape function for market: ", self.market.name)
 
@@ -134,15 +136,26 @@ class CategoryLinks():
                 pass
    
     def __getCarrefoursaCategoryLinks(self, webpage_soup, market_link):
-        # finds each category from the store page
-        containers = webpage_soup.findAll("ul", {"class": "dropdown-menu sub-menu s-menu-2"})
-        print("Number of Carrefoursa Categories: ", len(containers) )
+        # finds each main category from the store page
+        main_categories = webpage_soup.findAll("ul", {"class": "dropdown-menu sub-menu s-menu-2"})
 
-        for container in containers:
-            subcontainers = container.findAll('a',href=True)
-            for subcontainer in subcontainers:
-                self.category_links.append(self.market_link + subcontainer['href'] + "?sayfa=")
+        for index, main_category in enumerate(main_categories):
+
+            if index == len(main_categories) - 1: # pass unwanted category
+                continue
+            else:
+                category = main_category.find("li", {"class": ""})
+                self.category_links.append(market_link + category.find('a',href=True)['href'])
                 print(self.category_links[-1])
+                print(category.span.span.text.strip())
+                while True:
+                    category = category.find_next_sibling("li")
+                    if category is None:
+                        break
+                    else:
+                        self.category_links.append(market_link + category.find('a',href=True)['href'])
+                        print(self.category_links[-1])
+                        print(category.span.span.text.strip())
 
 class DataScraper():
 
@@ -348,7 +361,7 @@ if __name__ == "__main__":
         market = Markets.A101
     elif sys.argv[1] == "ISTEGELSIN":
         market = Markets.ISTEGELSIN
-    elif sys.argv[1] == "CARREFOUR":
+    elif sys.argv[1] == "CARREFOURSA":
         market = Markets.CARREFOURSA
     else:
         print("Unknown market: ", sys.argv[1])
