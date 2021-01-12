@@ -85,12 +85,12 @@ class CategoryLinks():
 
         if self.market is Markets.MIGROS:
             self.__getMigrosCategoryLinks(webpage_soup, self.__market_link)
+        elif self.market is Markets.CARREFOURSA:
+            self.__getCarrefoursaCategoryLinks(webpage_soup, self.__market_link)
         elif self.market is Markets.A101:
             self.__getA101CategoryLinks(webpage_soup, self.__market_link)
         elif self.market is Markets.ISTEGELSIN:
             self.__getIstegelsinCategoryLinks(webpage_soup, self.__market_link)
-        elif self.market is Markets.CARREFOURSA:
-            self.__getCarrefoursaCategoryLinks(webpage_soup, self.__market_link)
         else:
             print("No scrape function for market: ", self.market.name)
 
@@ -107,6 +107,7 @@ class CategoryLinks():
         for category in categories:
             self.category_links.append(market_link + category.find('a',href=True)['href'])
             print(self.category_links[-1])
+            print(category.text.strip())
 
     def __getIstegelsinCategoryLinks(self, webpage_soup, market_link):
 
@@ -172,6 +173,8 @@ class DataScraper():
 
         if self.market is Markets.MIGROS:
             self.__scrape_migros(self.category_links)
+        elif self.market is Markets.CARREFOURSA:
+            self.__scrape_carrefoursa(self.category_links)
         elif self.market is Markets.A101:
             self.__scrape_a101(self.category_links)
         elif self.market is Markets.ISTEGELSIN:
@@ -238,7 +241,7 @@ class DataScraper():
                 # find number of pages in the link at the beginning of iteration
                 if(page_index == starting_number):
                     try:
-                        page_count_raw = webpage_soup.findAll("li", {"class": "pag-next"})[0].find_previous_sibling('li').text
+                        page_count_raw = webpage_soup.findAll("li", {"class": "pag-next"})[0].find_previous_sibling('li').text.strip()
                         # get number from strip
                         for char in page_count_raw.split():
                             if char.isdigit():
@@ -250,8 +253,7 @@ class DataScraper():
                 # finds each product from the store page
                 containers = webpage_soup.findAll("div", {"class": "list"})
                 product_count = len(containers)
-                # loops over each product and grabs attributes about
-                # each product
+                # loops over each product and grabs attributes about each product
                 for container in containers:
 
                     product_name1 = container.h5.a.text
@@ -268,6 +270,65 @@ class DataScraper():
                     # writes the dataset to file          
                     #csv_file.write((product_name1, product_name, brand, list_price, sale_price, category, product_link, image_link))
 
+                page_index += 1
+                self.total_product_count += product_count
+
+                end = time.time() - start
+                print(page_url , "\tNumOfProduct: " , product_count , "\tElapsedTime_sec: " , end)
+
+    def __scrape_carrefoursa(self, category_links): 
+    
+        for category_link in category_links:
+            page_count = 2
+            starting_number = 1
+            page_index = starting_number
+            
+            while page_index < page_count + starting_number:
+                start = time.time()
+                # opens the connection and downloads html page from url
+                page_url = category_link + "?page=" + str(page_index) 
+                request = Request(page_url,None,headers)
+                webpage = urlopen(request)
+
+                # parses html into a soup data structure to traverse html as if it were a json data type.
+                webpage_soup = soup(webpage.read(), "html.parser")
+                webpage.close()
+                # find number of pages in the link at the beginning of iteration
+                if(page_index == starting_number):
+                    try:
+                        page_count_raw = webpage_soup.find("ul", {"class": "pagination"}).findAll('a',href=True)[-2].text.strip()
+                        # get number from strip
+                        for char in page_count_raw.split():
+                            if char.isdigit():
+                                page_count = int(char)
+                                break
+                    except:
+                        page_count = 1
+
+                # finds each product from the store page
+                containers = webpage_soup.findAll("li", {"class": "col-xs-6 col-sm-3 col-md-2 col-lg2"})
+                product_count = len(containers)
+                # loops over each product and grabs attributes about each product
+                for container in containers:
+
+                    product_name = container.find("span", {"class": "item-name"}).text.strip()
+                    #brand = container.find("a", {"class": "product-link"})['data-monitor-brand']
+                    try:
+                        unit = container.find("span", {"class": "productUnit"}).text.strip()
+                    except:
+                        unit = "adet"
+                        print("Unit Problemzzz")
+                    #category = container.find("a", {"class": "product-link"})['data-monitor-category']
+                    sale_price = container.find("span", {"class": "item-price"}).text.strip()
+                    try:
+                        list_price = container.find("span", {"class": "priceLineThrough"}).text.strip()
+                    except:
+                        list_price = sale_price
+                    product_link = container.find("div", {"class": "product_click"}).find('a',href=True)['href']
+                    image_link = container.find("span", {"class": "thumb"}).img['data-src']
+                    # writes the dataset to file          
+                    #csv_file.write((product_name1, product_name, brand, list_price, sale_price, category, product_link, image_link))
+                    #print(product_name, " ", unit, " ", sale_price, " ", list_price, " ", product_link, " ", image_link)
                 page_index += 1
                 self.total_product_count += product_count
 
